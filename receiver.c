@@ -75,9 +75,9 @@ void interrupt ISR () {
         received_data = RCREG;   // Store received byte - must be read to clear RCIF
         RB3 = ~RB3; // toggle 
 
+        // uncomment below to check hex value
         // unsigned char high_nibble = (received_data >> 4) & 0x0F;
         // unsigned char low_nibble = received_data & 0x0F;
-
         // dataCtrl(toHexChar(high_nibble));
         // dataCtrl(toHexChar(low_nibble));
 
