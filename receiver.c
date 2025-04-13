@@ -20,7 +20,7 @@
  *  3. Use interrupts for transmit and receive
 */
 
-unsigned char received_data = 0x00;
+unsigned char received_data = 0;
 
 void delay(int time)
 {
@@ -62,28 +62,33 @@ void dataCtrl(unsigned char data)
 	RB2 = 0; // set E to 0 (strobe)
 }
 
+char toHexChar(unsigned char nibble) {
+    if (nibble < 10) return '0' + nibble;
+    else return 'A' + (nibble - 10);
+}
+
 void interrupt ISR () {
     GIE = 0;
 
-    if (RCIF) {
+    if (RCIF){
+
+        received_data = RCREG;   // Store received byte - must be read to clear RCIF
+        RB3 = ~RB3; // toggle 
+
+        // unsigned char high_nibble = (received_data >> 4) & 0x0F;
+        // unsigned char low_nibble = received_data & 0x0F;
+
+        // dataCtrl(toHexChar(high_nibble));
+        // dataCtrl(toHexChar(low_nibble));
+
+        dataCtrl(received_data);
+
         if (OERR) {
             CREN = 0;  // Clear error
             CREN = 1;  // Re-enable receiver
         }
 
-        received_data = RCREG;   // Store received byte - must be read to clear RCIF
-        RB3 = ~RB3; // toggle 
-
-        // unsigned char lower = received_data & 0x0F;
-        // unsigned char upper = (received_data >> 4) & 0x0F;
-
-        dataCtrl('s');
-        dataCtrl('t');
-        dataCtrl(received_data);
-        // dataCtrl(upper > 9 ? upper - 10 + 'A' : upper + '0');
-        // dataCtrl(lower > 9 ? lower - 10 + 'A' : lower + '0');
-
-        RCIF = 0;
+        // RCIF = 0;
         delay(200);
     }
 
@@ -104,12 +109,13 @@ void main () {
 
     // receiver config
     SYNC = 1;   // Synchronous mode
-    CSRC = 0; // sync master mode (clock generated externally from BRG in master(transmitter))
     SPEN = 1;   // Enable serial port
+    CSRC = 0; // sync master mode (clock generated externally from BRG in master(transmitter))
     TXEN = 0;   // Disable transmitter (receiver only)
-    TX9 = 0; // 8 bit transmission
-    BRGH = 0; // low speed sync
-    // SPBRG = 103;  // Baud rate value baud= 9600 Fosc = 4MHz
+    RX9 = 0; // 8 bit transmission
+    // SPBRG = 0x19;  // Baud rate value baud= 9600 Fosc = 4MHz
+    // BRGH = 0; // low speed sync
+    // SREN - dont care in slave mode
     CREN = 1;   // Enable continuous receive
 
     // set interrupts
