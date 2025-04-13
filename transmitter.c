@@ -29,15 +29,16 @@ void delay(int time)
 	}
 }
 
+char to_send = 'A';
+
 void interrupt ISR () {
     GIE = 0;
 
     if (TXIF){
-        TXREG = 'A'; // A
-        // TXIF = 0;
+        TXREG = to_send; // A
         TXIE = 0; // disable further TX interrupts
-        // to_send++; // increment to test 'A', 'B', 'C', etc.
-        // if (to_send > 'Z') to_send = 'A';
+        to_send++; // increment to test 'A', 'B', 'C', etc.
+        if (to_send > 'Z') to_send = 'A';
     }
 
     GIE = 1;
