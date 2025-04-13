@@ -20,7 +20,7 @@
  *  3. Use interrupts for transmit and receive
 */
 
-volatile unsigned char received_data = 0;
+unsigned char received_data = 0x00;
 
 void delay(int time)
 {
@@ -41,16 +41,6 @@ void instCtrl(unsigned char data)
 	RB2 = 0; // set E to 0 (strobe)
 }
 
-void dataCtrl(unsigned char data)
-{
-	PORTD = data; // load data to PORT C since its our output
-	RB0 = 1;	  // set RS to 1 (data reg)
-	RB1 = 0;	  // set RW to 0 (write)
-	RB2 = 1;	  // set E to 1
-	delay(5);
-	RB2 = 0; // set E to 0 (strobe)
-}
-
 void initLCD()
 {
 	delay(50);
@@ -62,45 +52,72 @@ void initLCD()
 	instCtrl(0x0E); // display on; cursor off; blink off
 }
 
+void dataCtrl(unsigned char data)
+{
+	PORTD = data; // load data to PORT C since its our output
+	RB0 = 1;	  // set RS to 1 (data reg)
+	RB1 = 0;	  // set RW to 0 (write)
+	RB2 = 1;	  // set E to 1
+	delay(5);
+	RB2 = 0; // set E to 0 (strobe)
+}
+
 void interrupt ISR () {
-     if (RCIE && RCIF) {
+    GIE = 0;
+
+    if (RCIF) {
+        if (OERR) {
+            CREN = 0;  // Clear error
+            CREN = 1;  // Re-enable receiver
+        }
+
         received_data = RCREG;   // Store received byte - must be read to clear RCIF
         RB3 = ~RB3; // toggle 
-        dataCtrl('w'); // mask and show in lcd
 
-        dataCtrl(received_data); // mask and show in lcd
-        delay(250);
+        // unsigned char lower = received_data & 0x0F;
+        // unsigned char upper = (received_data >> 4) & 0x0F;
+
+        dataCtrl('s');
+        dataCtrl('t');
+        dataCtrl(received_data);
+        // dataCtrl(upper > 9 ? upper - 10 + 'A' : upper + '0');
+        // dataCtrl(lower > 9 ? lower - 10 + 'A' : lower + '0');
+
+        RCIF = 0;
+        delay(200);
     }
+
+    GIE = 1;
 }
 
 void main () {
+    // lcd config - set port b & d as output
+    TRISB = 0x00;
+    TRISD = 0x00;
+
+    initLCD();
+    instCtrl(0x01);
+
     // set as the usart pins
-    TRISC6 = 1; // CK (input in slave)
+    TRISC6 = 1; // CK (input in slave for shared clock)
     TRISC7 = 1; // RX/DT as input
 
-    // transmit config
+    // receiver config
     SYNC = 1;   // Synchronous mode
+    CSRC = 0; // sync master mode (clock generated externally from BRG in master(transmitter))
     SPEN = 1;   // Enable serial port
     TXEN = 0;   // Disable transmitter (receiver only)
     TX9 = 0; // 8 bit transmission
     BRGH = 0; // low speed sync
-    SPBRG = 25;  // Baud rate value baud= 9600 Fosc = 4MHz
+    // SPBRG = 103;  // Baud rate value baud= 9600 Fosc = 4MHz
     CREN = 1;   // Enable continuous receive
-    CSRC = 1; // sync master mode (clock generated interally from BRG)
 
     // set interrupts
     RCIE = 1; // Enable receiver interrupt
     PEIE = 1; // Enable peripheral interrupts
     GIE = 1; // Enable global interrupts
 
-    // lcd config - set port b & d as output
-    TRISB = 0x00;
-    TRISD = 0x00;
-
     RB3 = 0;
-
-    initLCD();
-    instCtrl(0x01);
 
     while (1) {
     }
